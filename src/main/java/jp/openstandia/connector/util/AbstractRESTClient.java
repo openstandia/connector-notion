@@ -97,7 +97,7 @@ public abstract class AbstractRESTClient<C extends Configuration> {
                 throw new AlreadyExistsException(String.format("%s %s '%s' already exists.", instanceName, objectClass.getObjectClassValue(), name));
             }
             if (errorHandler.isInvalidRequest(response)) {
-                throw new InvalidAttributeValueException(String.format("Bad request when creating %s %s '%s': %s", instanceName, objectClass.getObjectClassValue(), name, toBody(response)));
+                throw new InvalidAttributeValueException(String.format("Bad request in create operation %s %s '%s': %s", instanceName, objectClass.getObjectClassValue(), name, toBody(response)));
             }
 
             if (!this.errorHandler.isOk(response)) {
@@ -121,7 +121,7 @@ public abstract class AbstractRESTClient<C extends Configuration> {
             }
 
             if (this.errorHandler.isInvalidRequest(response)) {
-                throw new InvalidAttributeValueException(String.format("Bad request when updating %s %s: %s, response: %s",
+                throw new InvalidAttributeValueException(String.format("Bad request in update operation %s %s: %s, response: %s",
                         this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue(), toBody(response)));
             }
 
@@ -145,7 +145,7 @@ public abstract class AbstractRESTClient<C extends Configuration> {
             }
 
             if (this.errorHandler.isInvalidRequest(response)) {
-                throw new InvalidAttributeValueException(String.format("Bad request when updating %s %s: %s, response: %s",
+                throw new InvalidAttributeValueException(String.format("Bad request in replace operation %s %s: %s, response: %s",
                         this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue(), toBody(response)));
             }
 
@@ -192,7 +192,7 @@ public abstract class AbstractRESTClient<C extends Configuration> {
             }
 
             if (this.errorHandler.isInvalidRequest(response)) {
-                throw new InvalidAttributeValueException(String.format("Bad request when deleting %s %s: %s, response: %s",
+                throw new InvalidAttributeValueException(String.format("Bad request in delete operation %s %s: %s, response: %s",
                         this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue(), toBody(response)));
             }
 
@@ -206,6 +206,55 @@ public abstract class AbstractRESTClient<C extends Configuration> {
         } catch (IOException e) {
             throw new ConnectorIOException(String.format("Failed to delete %s %s: %s",
                     this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue()), e);
+        }
+    }
+
+    protected Response callRead(ObjectClass objectClass, String url, Uid uid) {
+        try {
+            Response response = get(url + "/" + uid.getUidValue());
+            if (this.errorHandler.isNotFound(response)) {
+                // Don't return UnknownUidException in the Search (executeQuery) operations
+                return null;
+            }
+
+            if (this.errorHandler.isInvalidRequest(response)) {
+                throw new InvalidAttributeValueException(String.format("Bad request in read operation for %s %s: %s, response: %s",
+                        this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue(), toBody(response)));
+            }
+
+            if (!this.errorHandler.isOk(response)) {
+                throw new ConnectorIOException(String.format("Failed to read %s %s: %s, statusCode: %d, response: %s",
+                        this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue(), response.code(), toBody(response)));
+            }
+
+            // Success
+            return response;
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Failed to read %s %s: %s",
+                    this.instanceName, objectClass.getObjectClassValue(), uid.getUidValue()), e);
+        }
+    }
+
+    protected Response callSearch(ObjectClass objectClass, String url, Map<String, String> params) {
+        try {
+            Response response = get(url, params);
+            if (this.errorHandler.isInvalidRequest(response)) {
+                throw new InvalidAttributeValueException(String.format("Bad request in search operation for %s %s: %s, response: %s",
+                        this.instanceName, objectClass.getObjectClassValue(), params, toBody(response)));
+            }
+
+            if (!this.errorHandler.isOk(response)) {
+                throw new ConnectorIOException(String.format("Failed to search %s %s: %s, statusCode: %d, response: %s",
+                        this.instanceName, objectClass.getObjectClassValue(), params, response.code(), toBody(response)));
+            }
+
+            // Success
+            return response;
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Failed to search %s %s: %s",
+                    this.instanceName, objectClass.getObjectClassValue(), params), e);
         }
     }
 
@@ -238,11 +287,11 @@ public abstract class AbstractRESTClient<C extends Configuration> {
         }
     }
 
-    protected Response get(String url) throws ConnectorIOException {
+    protected Response get(String url) throws IOException {
         return get(url, null);
     }
 
-    protected Response get(String url, Map<String, String> params) throws ConnectorIOException {
+    protected Response get(String url, Map<String, String> params) throws IOException {
         HttpUrl.Builder httpBuilder = HttpUrl.parse(url).newBuilder();
 
         if (params != null) {
@@ -255,11 +304,7 @@ public abstract class AbstractRESTClient<C extends Configuration> {
                 .build();
 
         final Response response;
-        try {
-            response = httpClient.newCall(request).execute();
-        } catch (IOException e) {
-            throw new ConnectorIOException(this.instanceName + " server error", e);
-        }
+        response = httpClient.newCall(request).execute();
 
         throwExceptionIfUnauthorized(response);
         throwExceptionIfServerError(response);

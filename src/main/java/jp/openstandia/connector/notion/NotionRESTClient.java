@@ -137,14 +137,15 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
     }
 
     public NotionUserModel getUser(Uid uid, OperationOptions options, Set<String> fetchFieldsSet) throws UnknownUidException {
-        try (Response response = get(userEndpoint + "/" + uid.getUidValue(), null)) {
-            try {
-                NotionUserModel user = MAPPER.readValue(response.body().byteStream(), NotionUserModel.class);
-                return user;
-
-            } catch (IOException e) {
-                throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
+        try (Response response = callRead(USER_OBJECT_CLASS, userEndpoint, uid)) {
+            if (response == null) {
+                return null;
             }
+            NotionUserModel user = MAPPER.readValue(response.body().byteStream(), NotionUserModel.class);
+            return user;
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
         }
     }
 
@@ -152,18 +153,16 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
         Map<String, String> params = new HashMap<>();
         params.put("filter", formatFilter("userName eq \"%s\"", name.getNameValue()));
 
-        try (Response response = get(userEndpoint, params)) {
-            try {
-                UserListBody list = MAPPER.readValue(response.body().byteStream(), UserListBody.class);
-                if (list.resources == null || list.resources.size() != 1) {
-                    LOG.info("The user is not found. userName={0}", name.getNameValue());
-                    return null;
-                }
-                return list.resources.get(0);
-
-            } catch (IOException e) {
-                throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
+        try (Response response = callSearch(USER_OBJECT_CLASS, userEndpoint, params)) {
+            UserListBody list = MAPPER.readValue(response.body().byteStream(), UserListBody.class);
+            if (list.resources == null || list.resources.size() != 1) {
+                LOG.info("The {0} user is not found. userName={1}", instanceName, name.getNameValue());
+                return null;
             }
+            return list.resources.get(0);
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
         }
     }
 
@@ -190,7 +189,7 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
                 params.put(offsetKey, String.valueOf(start));
                 params.put(countKey, String.valueOf(size));
 
-                try (Response response = get(userEndpoint, params)) {
+                try (Response response = callSearch(USER_OBJECT_CLASS, userEndpoint, params)) {
                     UserListBody list = MAPPER.readValue(response.body().byteStream(), UserListBody.class);
                     return list.resources;
 
@@ -208,7 +207,7 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
         params.put(offsetKey, String.valueOf(start));
         params.put(countKey, String.valueOf(pageSize));
 
-        try (Response response = get(userEndpoint, params)) {
+        try (Response response = callSearch(USER_OBJECT_CLASS, userEndpoint, params)) {
             UserListBody list = MAPPER.readValue(response.body().byteStream(), UserListBody.class);
             for (NotionUserModel user : list.resources) {
                 if (!handler.handle(user)) {
@@ -241,14 +240,15 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
     }
 
     public NotionGroupModel getGroup(Uid uid, OperationOptions options, Set<String> fetchFieldsSet) throws UnknownUidException {
-        try (Response response = get(groupEndpoint + "/" + uid.getUidValue(), null)) {
-            try {
-                NotionGroupModel group = MAPPER.readValue(response.body().byteStream(), NotionGroupModel.class);
-                return group;
-
-            } catch (IOException e) {
-                throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
+        try (Response response = callRead(GROUP_OBJECT_CLASS, groupEndpoint, uid)) {
+            if (response == null) {
+                return null;
             }
+            NotionGroupModel group = MAPPER.readValue(response.body().byteStream(), NotionGroupModel.class);
+            return group;
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
         }
     }
 
@@ -256,18 +256,16 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
         Map<String, String> params = new HashMap<>();
         params.put("filter", formatFilter("displayName eq \"%s\"", name.getNameValue()));
 
-        try (Response response = get(groupEndpoint, params)) {
-            try {
-                GroupListBody list = MAPPER.readValue(response.body().byteStream(), GroupListBody.class);
-                if (list.resources == null || list.resources.size() != 1) {
-                    LOG.info("The group is not found. displayName={0}", name.getNameValue());
-                    return null;
-                }
-                return list.resources.get(0);
-
-            } catch (IOException e) {
-                throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
+        try (Response response = callSearch(GROUP_OBJECT_CLASS, groupEndpoint, params)) {
+            GroupListBody list = MAPPER.readValue(response.body().byteStream(), GroupListBody.class);
+            if (list.resources == null || list.resources.size() != 1) {
+                LOG.info("The {0} group is not found. displayName={1}", instanceName, name.getNameValue());
+                return null;
             }
+            return list.resources.get(0);
+
+        } catch (IOException e) {
+            throw new ConnectorIOException(String.format("Cannot parse %s REST API Response", instanceName), e);
         }
     }
 
@@ -279,7 +277,7 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
                 params.put(offsetKey, String.valueOf(start));
                 params.put(countKey, String.valueOf(size));
 
-                try (Response response = get(groupEndpoint, params)) {
+                try (Response response = callSearch(GROUP_OBJECT_CLASS, groupEndpoint, params)) {
                     GroupListBody list = MAPPER.readValue(response.body().byteStream(), GroupListBody.class);
                     return list.resources;
 
@@ -296,7 +294,7 @@ public class NotionRESTClient extends AbstractRESTClient<NotionConfiguration> {
         params.put(offsetKey, String.valueOf(start));
         params.put(countKey, String.valueOf(pageSize));
 
-        try (Response response = get(groupEndpoint, params)) {
+        try (Response response = callSearch(GROUP_OBJECT_CLASS, groupEndpoint, params)) {
             GroupListBody list = MAPPER.readValue(response.body().byteStream(), GroupListBody.class);
             for (NotionGroupModel group : list.resources) {
                 if (!handler.handle(group)) {

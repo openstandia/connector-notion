@@ -293,6 +293,28 @@ class UserTest extends AbstractTest {
     }
 
     @Test
+    void getUserByUidWithNotFound() {
+        ConnectorFacade connector = newFacade(configuration);
+
+        // Given
+        String userId = "12345";
+        String userName = "foo";
+
+        AtomicReference<Uid> targetUid = new AtomicReference<>();
+        mockClient.getUserByUid = ((u) -> {
+            targetUid.set(u);
+            return null;
+        });
+
+        // When
+        ConnectorObject result = connector.getObject(USER_OBJECT_CLASS, new Uid(userId, new Name(userName)), defaultGetOperation());
+
+        // Then
+        assertNull(result);
+        assertNotNull(targetUid.get());
+    }
+
+    @Test
     void getUserByName() {
         // Given
         String userId = "12345";
